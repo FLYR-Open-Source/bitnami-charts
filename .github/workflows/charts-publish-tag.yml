@@ -57,9 +57,9 @@ jobs:
           echo "Found ${#matching_tags[@]} matching tag(s):"
           printf '  %s\n' "${matching_tags[@]}"
 
-          # Safety cap: limit to 50 tags per run
-          if [[ ${#matching_tags[@]} -gt 100 ]]; then
-            echo "::error::Pattern matches ${#matching_tags[@]} tags (max 100). Use a more specific pattern."
+          # Safety cap: limit to 150 tags per run
+          if [[ ${#matching_tags[@]} -gt 150 ]]; then
+            echo "::error::Pattern matches ${#matching_tags[@]} tags (max 150). Use a more specific pattern."
             exit 1
           fi
 
