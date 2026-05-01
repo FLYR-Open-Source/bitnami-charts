@@ -22,12 +22,12 @@ appVersion: 1.18.1
 dependencies:
 - condition: etcd.enabled
   name: etcd
-  repository: oci://registry-1.docker.io/bitnamicharts
+  repository: oci://ghcr.io/flyr-open-source/bitnami-charts
   tags:
   - cilium-database
   version: 12.x.x
 - name: common
-  repository: oci://registry-1.docker.io/bitnamicharts
+  repository: oci://ghcr.io/flyr-open-source/bitnami-charts
   tags:
   - bitnami-common
   version: 2.x.x

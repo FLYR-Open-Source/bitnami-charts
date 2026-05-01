@@ -16,14 +16,14 @@ appVersion: 26.0.0
 dependencies:
 - condition: minio.enabled
   name: minio
-  repository: oci://registry-1.docker.io/bitnamicharts
+  repository: oci://ghcr.io/flyr-open-source/bitnami-charts
   version: 17.x.x
 - condition: zookeeper.enabled
   name: zookeeper
-  repository: oci://registry-1.docker.io/bitnamicharts
+  repository: oci://ghcr.io/flyr-open-source/bitnami-charts
   version: 13.x.x
 - name: common
-  repository: oci://registry-1.docker.io/bitnamicharts
+  repository: oci://ghcr.io/flyr-open-source/bitnami-charts
   tags:
   - bitnami-common
   version: 2.x.x
