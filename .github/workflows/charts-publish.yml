@@ -47,7 +47,7 @@ jobs:
           result-encoding: string
           script: |
             const [owner] = process.env.REPOSITORY.toLowerCase().split('/');
-            return `${process.env.REGISTRY}/${owner}/bitnami-charts`;
+            return `${process.env.REGISTRY}/${owner}/bitnamicharts`;
       # - name: Install chart-testing (ct)
       #   if: github.event_name == 'pull_request'
       #   uses: helm/chart-testing-action@v2.6.1

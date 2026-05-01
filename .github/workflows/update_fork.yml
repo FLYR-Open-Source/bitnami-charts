@@ -64,7 +64,7 @@ jobs:
           REGISTRY: ${{ env.REGISTRY }}
           OWNER: ${{ github.repository_owner }}
         run: |
-          OCI_REPO="oci://$(echo "$REGISTRY")/$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')/bitnami-charts"
+          OCI_REPO="oci://$(echo "$REGISTRY")/$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')/bitnamicharts"
 
           # --- Patch 1: Neuter image restriction checks in the common library chart ---
           # Replace insecureImages error (blocks helm install when images are changed)

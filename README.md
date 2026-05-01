@@ -17,7 +17,7 @@
 > **Install a chart:**
 >
 > ```console
-> helm install my-release oci://ghcr.io/flyr-open-source/bitnami-charts/<chart>
+> helm install my-release oci://ghcr.io/flyr-open-source/bitnamicharts/<chart>
 > ```
 >
 > Replace `<chart>` with the chart name (e.g. `redis`, `postgresql`).
