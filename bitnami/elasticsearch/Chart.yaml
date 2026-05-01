@@ -16,10 +16,10 @@ appVersion: 9.1.2
 dependencies:
 - condition: global.kibanaEnabled
   name: kibana
-  repository: oci://registry-1.docker.io/bitnamicharts
+  repository: oci://ghcr.io/flyr-open-source/bitnami-charts
   version: 12.x.x
 - name: common
-  repository: oci://registry-1.docker.io/bitnamicharts
+  repository: oci://ghcr.io/flyr-open-source/bitnami-charts
   tags:
   - bitnami-common
   version: 2.x.x

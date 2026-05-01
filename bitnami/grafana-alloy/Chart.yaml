@@ -12,7 +12,7 @@ apiVersion: v2
 appVersion: 1.10.2
 dependencies:
 - name: common
-  repository: oci://registry-1.docker.io/bitnamicharts
+  repository: oci://ghcr.io/flyr-open-source/bitnami-charts
   tags:
   - bitnami-common
   version: 2.x.x
