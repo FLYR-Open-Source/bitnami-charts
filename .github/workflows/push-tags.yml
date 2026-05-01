@@ -1,0 +1,77 @@
+name: '[CI/CD] Push tags'
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'bitnami/**'
+      - '!**.md'
+# Remove all permissions by default.
+permissions: {}
+jobs:
+  get-charts:
+    runs-on: ubuntu-latest
+    name: 'Get modified charts'
+    permissions:
+      contents: read
+    outputs:
+      charts: ${{ steps.get-charts.outputs.charts }}
+      result: ${{ steps.get-charts.outputs.result }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          path: charts
+          fetch-depth: 2 # to be able to obtain files changed in the latest commit
+      - id: get-charts
+        name: 'Get modified charts'
+        run: |
+          cd charts
+          files_changed="$(git show --pretty="" --name-only)"
+          # Adding || true to avoid "Process exited with code 1" errors
+          charts_dirs_changed="$(echo "$files_changed" | xargs dirname | grep -o "bitnami/[^/]*" | sort | uniq || true)"
+          # Using grep -c as a better alternative to wc -l when dealing with empty strings.
+          num_charts_changed="$(echo "$charts_dirs_changed" | grep -c "bitnami" || true)"
+
+          if [[ "$num_charts_changed" -eq "0" ]]; then
+            echo "No chart changes detected"
+            echo "result=skip" >> $GITHUB_OUTPUT
+          else
+            # Build a JSON array of chart names for the matrix
+            charts_json="$(echo "$charts_dirs_changed" | sed 's|bitnami/||g' | jq -R -s -c 'split("\n") | map(select(length > 0))')"
+            echo "charts=${charts_json}" >> $GITHUB_OUTPUT
+            echo "result=ok" >> $GITHUB_OUTPUT
+            echo "Charts to tag: ${charts_json}"
+          fi
+  push-tags:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    needs:
+      - get-charts
+    name: Push tag (${{ matrix.chart }})
+    if: ${{ needs.get-charts.outputs.result == 'ok' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        chart: ${{ fromJson(needs.get-charts.outputs.charts) }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          path: charts
+          fetch-depth: 2 # to be able to obtain files changed in the latest commit
+      - id: push-tag
+        name: 'Push tag'
+        env:
+          CHART: ${{ matrix.chart }}
+        run: |
+          cd charts
+          # Get chart version and list of tags
+          chart_version="$(yq e '.version' bitnami/${CHART}/Chart.yaml)"
+          git fetch --tags
+          # If the tag does not exist, create and push it (this allows re-executing the job)
+          if ! git tag | grep "${CHART}/${chart_version}"; then
+            git tag "${CHART}/${chart_version}"
+            git push origin "${CHART}/${chart_version}"
+          else
+            echo "Tag ${CHART}/${chart_version} already exists, skipping"
+          fi

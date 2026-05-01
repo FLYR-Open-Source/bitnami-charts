@@ -1,0 +1,70 @@
+name: '[Maintenance] Sync fork with upstream'
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout your fork
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.email "auto-updater@github.com"
+          git config user.name "Auto Updater"
+
+      - name: Add upstream remote and fetch
+        run: |
+          git remote add upstream https://github.com/bitnami/charts.git
+          git fetch upstream
+
+      - name: Check if fork is behind upstream
+        id: check
+        run: |
+          behind="$(git rev-list --count main..upstream/main)"
+          echo "behind=$behind" >> "$GITHUB_OUTPUT"
+          echo "Fork is $behind commit(s) behind upstream"
+
+      - name: Merge and push (or fall back to PR)
+        if: steps.check.outputs.behind != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git checkout main
+          if ! git merge --no-edit upstream/main; then
+            echo "::error::Merge conflict — manual resolution required"
+            git merge --abort
+            exit 1
+          fi
+
+          if git push origin main 2>/dev/null; then
+            echo "Pushed directly to main"
+          else
+            echo "Direct push failed (likely workflow permission issue), creating PR instead"
+            branch="upstream-sync/$(date +%Y%m%d-%H%M%S)"
+            git checkout -b "$branch"
+            git push origin "$branch"
+
+            # Close any stale sync PRs
+            gh pr list --label "upstream-sync" --state open --json number --jq '.[].number' \
+              | xargs -I{} gh pr close {} --comment "Superseded by newer sync PR" || true
+
+            gh pr create \
+              --title "chore: sync with upstream bitnami/charts" \
+              --body "Automated upstream sync. Direct push failed due to workflow file permission restrictions. Merge this PR to complete the sync." \
+              --label "upstream-sync" \
+              --base main \
+              --head "$branch"
+          fi
+
+      - name: Clean up
+        run: git remote remove upstream
