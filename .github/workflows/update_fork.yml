@@ -4,6 +4,9 @@ on:
     - cron: "0 0 * * *"
   workflow_dispatch:
 
+env:
+  REGISTRY: ghcr.io
+
 permissions:
   contents: write
   pull-requests: write
@@ -34,10 +37,8 @@ jobs:
           echo "behind=$behind" >> "$GITHUB_OUTPUT"
           echo "Fork is $behind commit(s) behind upstream"
 
-      - name: Merge and push (or fall back to PR)
+      - name: Merge upstream
         if: steps.check.outputs.behind != '0'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git checkout main
           if ! git merge --no-edit upstream/main; then
@@ -46,6 +47,87 @@ jobs:
             exit 1
           fi
 
+      - name: Apply fork patches
+        if: steps.check.outputs.behind != '0'
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          OCI_REPO="oci://$(echo "$REGISTRY")/$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')/bitnami-charts"
+
+          # --- Patch 1: Neuter image restriction checks in the common library chart ---
+          # Replace insecureImages error (blocks helm install when images are changed)
+          # Uses awk to track define/end nesting depth so inner {{- end -}} lines are handled correctly
+          awk '
+            /^\{\{- define "common.errors.insecureImages"/ {
+              skip=1; depth=1
+              print "{{- define \"common.errors.insecureImages\" -}}"
+              next
+            }
+            skip {
+              # Count opening blocks (if/range/with/block/define) but NOT else/else if
+              n = gsub(/\{\{-? *(if|range|with|block|define) /, "&")
+              depth += n
+              # Count closing ends
+              n = gsub(/\{\{-? *end *-?\}\}/, "&")
+              depth -= n
+              if (depth <= 0) {
+                print "{{- end -}}"
+                skip = 0
+              }
+              next
+            }
+            { print }
+          ' bitnami/common/templates/_errors.tpl > /tmp/_errors.tpl && \
+            mv /tmp/_errors.tpl bitnami/common/templates/_errors.tpl
+
+          # Replace modifiedImages warning
+          awk '
+            /^\{\{- define "common.warnings.modifiedImages"/ {
+              skip=1; depth=1
+              print "{{- define \"common.warnings.modifiedImages\" -}}"
+              next
+            }
+            skip {
+              n = gsub(/\{\{-? *(if|range|with|block|define) /, "&")
+              depth += n
+              n = gsub(/\{\{-? *end *-?\}\}/, "&")
+              depth -= n
+              if (depth <= 0) {
+                print "{{- end -}}"
+                skip = 0
+              }
+              next
+            }
+            { print }
+          ' bitnami/common/templates/_warnings.tpl > /tmp/_warnings.tpl && \
+            mv /tmp/_warnings.tpl bitnami/common/templates/_warnings.tpl
+
+          # --- Patch 2: Rewrite chart dependency repositories to fork's GHCR ---
+          find bitnami -name Chart.yaml -exec \
+            sed -i "s|oci://registry-1.docker.io/bitnamicharts|${OCI_REPO}|g" {} +
+
+          # --- Patch 3: Remove Chart.lock files (digests are invalidated by repo change) ---
+          # The publish workflow uses 'helm dependency update' to regenerate them at build time.
+          find bitnami -name Chart.lock -delete
+
+          echo "Patches applied: image checks neutered, deps rewritten to ${OCI_REPO}, Chart.lock files removed"
+
+      - name: Commit patches
+        if: steps.check.outputs.behind != '0'
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No patch changes to commit"
+          else
+            git commit -m "chore: apply fork patches (rewrite deps, remove image checks)"
+          fi
+
+      - name: Push or create PR
+        if: steps.check.outputs.behind != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
           if git push origin main 2>/dev/null; then
             echo "Pushed directly to main"
           else

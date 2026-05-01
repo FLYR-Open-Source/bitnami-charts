@@ -12,6 +12,16 @@
 
 # The Bitnami Library for Kubernetes
 
+> **Note: This is a community-maintained fork.** Charts are automatically synced from the upstream [bitnami/charts](https://github.com/bitnami/charts) repository and published as OCI artifacts to this fork's GitHub Container Registry. Image restriction checks have been removed so you can use any container images without errors or warnings.
+>
+> **Install a chart:**
+>
+> ```console
+> helm install my-release oci://ghcr.io/flyr-open-source/bitnami-charts/<chart>
+> ```
+>
+> Replace `<chart>` with the chart name (e.g. `redis`, `postgresql`).
+
 Popular applications, provided by [Bitnami](https://bitnami.com), ready to launch on Kubernetes using [Kubernetes Helm](https://github.com/helm/helm).
 
 ## TL;DR

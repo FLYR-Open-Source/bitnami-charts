@@ -63,7 +63,11 @@ jobs:
 
       - name: Build chart dependencies
         working-directory: ${{ matrix.context }}
-        run: helm dependency build
+        run: |
+          # Use 'dependency update' instead of 'dependency build' because
+          # Chart.lock files are removed during fork patching (digest invalidation).
+          # This resolves versions from Chart.yaml and regenerates Chart.lock.
+          helm dependency update
 
       - name: Package chart
         id: pkg
