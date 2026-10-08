@@ -53,11 +53,32 @@ jobs:
         if: steps.check.outputs.behind != '0'
         run: |
           git checkout main
-          if ! git merge --no-edit upstream/main; then
-            echo "::error::Merge conflict — manual resolution required"
+          if git merge --no-edit upstream/main; then
+            exit 0
+          fi
+
+          # Auto-resolve modify/delete conflicts by honoring the upstream deletion
+          # (our fork patches touch Chart.yaml, which otherwise conflicts with charts removed upstream)
+          unresolved=""
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+            status="$(git status --porcelain=v1 -- "$file" | cut -c1-2)"
+            if [[ "$status" == "UD" ]]; then
+              echo "Removed upstream, honoring deletion: $file"
+              git rm -q "$file"
+            else
+              unresolved+="$file"$'\n'
+            fi
+          done < <(git diff --name-only --diff-filter=U)
+
+          if [[ -n "$unresolved" ]]; then
+            echo "::error::Merge conflicts require manual resolution:"
+            echo "$unresolved"
             git merge --abort
             exit 1
           fi
+
+          git commit --no-edit
 
       - name: Apply fork patches
         if: steps.check.outputs.behind != '0' || inputs.force_patches
