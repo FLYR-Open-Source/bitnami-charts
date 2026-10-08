@@ -59,17 +59,23 @@ jobs:
 
           # Auto-resolve modify/delete conflicts by honoring the upstream deletion
           # (our fork patches touch Chart.yaml, which otherwise conflicts with charts removed upstream)
+          # Captured upfront to avoid concurrent git invocations racing on index.lock
+          status_output="$(git status --porcelain=v1)"
           unresolved=""
-          while IFS= read -r file; do
-            [[ -z "$file" ]] && continue
-            status="$(git status --porcelain=v1 -- "$file" | cut -c1-2)"
-            if [[ "$status" == "UD" ]]; then
-              echo "Removed upstream, honoring deletion: $file"
-              git rm -q "$file"
-            else
-              unresolved+="$file"$'\n'
-            fi
-          done < <(git diff --name-only --diff-filter=U)
+          while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            code="${line:0:2}"
+            file="${line:3}"
+            case "$code" in
+              UD)
+                echo "Removed upstream, honoring deletion: $file"
+                git rm -q -- "$file"
+                ;;
+              DD|AU|UA|DU|AA|UU)
+                unresolved+="$file"$'\n'
+                ;;
+            esac
+          done <<< "$status_output"
 
           if [[ -n "$unresolved" ]]; then
             echo "::error::Merge conflicts require manual resolution:"
