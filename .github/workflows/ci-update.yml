@@ -46,14 +46,17 @@ jobs:
       )
     steps:
       - name: Checkout bitnami/charts
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{github.event.pull_request.head.ref}}
           repository: ${{github.event.pull_request.head.repo.full_name}}
           token: ${{ secrets.BITNAMI_BOT_TOKEN }}
           path: charts
+          # Safe here: this job only runs once a maintainer applies the 'verify' label (see the job's `if:` above),
+          # and the checked-out fork code is only read as data (values.yaml/Chart.yaml), never executed.
+          allow-unsafe-pr-checkout: true
       - name: Clone upstream bitnami/charts repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           path: upstream-charts
       - name: Setup git configuration
@@ -119,14 +122,14 @@ jobs:
           fi
       - name: 'Clone readme-generator-for-helm'
         if: needs.get-chart.outputs.values-updated == 'true' && github.event.action != 'edited'
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: bitnami/readme-generator-for-helm
           path: readme-generator-for-helm
           ref: '4d29f59abac6aeed6fbc2467e24fc17560057bcb' # 3.0.1 commit ID
       - name: 'Setup Node.js'
         if: needs.get-chart.outputs.values-updated == 'true' && github.event.action != 'edited'
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: '24.x'
       - name: 'Get npm cache directory'
@@ -136,7 +139,7 @@ jobs:
         run: echo "dir=$(npm config get cache)" >> ${GITHUB_OUTPUT}
       - name: 'Cache dependencies'
         if: needs.get-chart.outputs.values-updated == 'true' && github.event.action != 'edited'
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ${{ steps.npm-cache-dir.outputs.dir }}
           key: npm-${{ hashFiles('./readme-generator-for-helm/package-lock.json') }}
